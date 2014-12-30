@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="utf-8">
+<title>Device attribution sankey</title>
+<style>
+
+body {
+  font-family: "helvetica neue", helvetica;
+  color: #292f33;
+}
+
+.col-header {
+  width: 450px;
+  color: #8899a6;
+  font-size: 12px;
+}
+
+.pl {
+  float: left;
+}
+
+.pr {
+  float: right;
+  text-align: right;
+}
+
+.node rect {
+  fill-opacity: .9;
+  shape-rendering: crispEdges;
+}
+
+.node text {
+  pointer-events: none;
+  text-shadow: 0 1px 0 #fff;
+  font-size: 11px;
+}
+
+.link {
+  fill: none;
+  stroke: #66757f;
+  stroke-opacity: .3;
+}
+
+.link:hover {
+  stroke-opacity: .5;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Conversion attribution by device</h1>
+
+<h3>Total conversions: 4,500</h3>
+<div class="col-header">
+  <span class="pl"><strong>Impression</strong> was made<br>on this device</span>
+<span class="pr"><strong>Conversion</strong> was made<br>on this device</span>
+</div>
+<p id="chart">
+
+<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script src="sankey-js/sankey.js"></script>
+<script>
+
+var units = "ads served";
+
+var margin = {top: 10, right: 1, bottom: 1, left: 0},
+    width = 450,
+    height = 400 - margin.top - margin.bottom;
+
+var formatNumber = d3.format(",.0f"),    // zero decimal places
+    format = function(d) { return formatNumber(d) + " " + units; },
+    color = d3.scale.category20(),
+    // Purple from the Twitter color palette
+    twitterColorCategory = [
+    d3.rgb(136, 201, 249)+ "",// light blue
+    d3.rgb(166, 211, 136)+ "",// light green
+    d3.rgb(255, 217, 131)+ "",// light yellow
+    d3.rgb(170, 141, 216)+ "",// light purple
+    d3.rgb(170, 184, 194)+ "",// medium grey
+    d3.rgb(85, 55, 136)+ "",// dark purple
+    d3.rgb(116, 78, 170)+ "",// deep purple
+    d3.rgb(146, 102, 204)+ "",// medium purple
+    d3.rgb(170, 141, 216)+ "",// light purple
+    d3.rgb(203, 183, 234)+ "",// faded purple
+    d3.rgb(243, 237, 250)+ ""// faint purple
+    ],
+    twitterColor = d3.scale.ordinal().range(twitterColorCategory);
+
+
+// append the svg canvas to the page
+var svg = d3.select("#chart").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+
+// Set the sankey diagram properties
+var sankey = d3.sankey()
+    .nodeWidth(20)
+    .nodePadding(5)
+    .size([width, height]);
+
+var path = sankey.link();
+
+// load the data
+d3.json("sankey-formatted.json", function(error, graph) {
+
+  sankey
+      .nodes(graph.nodes)
+      .links(graph.links)
+      .layout(32);
+
+// add in the links
+  var link = svg.append("g").selectAll(".link")
+      .data(graph.links)
+    .enter().append("path")
+      .attr("class", "link")
+      .attr("d", path)
+      .style("stroke-width", function(d) { return Math.max(1, d.dy); })
+      .sort(function(a, b) { return b.dy - a.dy; });
+
+// add the link titles
+  link.append("title")
+        .text(function(d) {
+        return d.source.name + " → " +
+                d.target.name + "\n" + format(d.value); });
+
+// add in the nodes
+  var node = svg.append("g").selectAll(".node")
+      .data(graph.nodes)
+    .enter().append("g")
+      .attr("class", "node")
+      .attr("transform", function(d) {
+      return "translate(" + d.x + "," + d.y + ")"; });
+
+// add the rectangles for the nodes
+  node.append("rect")
+      .attr("height", function(d) { return d.dy; })
+      .attr("width", sankey.nodeWidth())
+      .style("fill", function(d) {
+      return d.color = twitterColor(d.name); })
+      .style("stroke", function(d) {
+      return d3.rgb(d.color).darker(0); })
+    .append("title")
+      .text(function(d) {
+      return d.name + "\n" + format(d.value); });
+
+// add in the title for the nodes
+  node.append("text")
+      .attr("x", -6)
+      .attr("y", function(d) { return d.dy / 2; })
+      .attr("dy", ".35em")
+      .attr("text-anchor", "end")
+      .attr("transform", null)
+      .text(function(d) { return d.name; })
+    .filter(function(d) { return d.x < width / 2; })
+      .attr("x", 6 + sankey.nodeWidth())
+      .attr("text-anchor", "start");
+
+// the function for moving the nodes
+  function dragmove(d) {
+    d3.select(this).attr("transform",
+        "translate(" + d.x + "," + (
+                d.y = Math.max(0, Math.min(height - d.dy, d3.event.y))
+            ) + ")");
+    sankey.relayout();
+    link.attr("d", path);
+  }
+});
+
+</script>
+
+
+</p></body></html>
